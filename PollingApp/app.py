@@ -16,6 +16,15 @@ class Poll(db.Model):
     def __repr__(self):
         return f"Poll('{self.title}', '{self.start_date}', '{self.end_date}')"
 
+class Vote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'), nullable=False)
+    option_index = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, nullable=False)
+
+    def __repr__(self):
+        return f"Vote('{self.poll_id}', '{self.option_index}', '{self.user_id}')"
+
 @app.route("/")
 def index():
     return jsonify({'message': 'Welcome to the Polling App'}), 200
@@ -43,6 +52,23 @@ def create_poll():
     db.session.commit()
 
     return jsonify({'message': 'Poll created successfully'}), 201
+
+@app.route('/vote/<int:poll_id>/int:option_index', methods=['POST'])
+def vote(poll_id, option_index):
+    poll = Poll.query.get_or_404(poll_id)
+    if option_index < 0 or option_index >= len(poll.options):
+        return jsonify({'error': 'Invalid option index'}), 400
+    
+    user_id = request.args.get('user_id')
+    existing_vote = Vote.query.filter_by(poll_id=poll_id, user_id=user_id).first()
+    if existing_vote:
+        return jsonify({'error': 'You have already voted'}), 400
+
+    new_vote = Vote(poll_id=poll_id, option_index=option_index, user_id=user_id) 
+    db.session.add(new_vote)
+    db.session.commit()
+
+    return jsonify({'message': 'Vote submitted successfully'}), 201   
 
 
 if __name__ == '__main__':
